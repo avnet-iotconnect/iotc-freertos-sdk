@@ -1,0 +1,13 @@
+[submodule "iotc-c-lib"]
+	path = iotc-c-lib
+	url = https://github.com/avnet-iotconnect/iotc-c-lib.git
+	branch = awsformat-2.1_changes_to_processing_events_and_acks
+[submodule "cJSON"]
+	path = cJSON
+	url = https://github.com/DaveGamble/cJSON.git
+[submodule "lwip"]
+	path = lwip
+	url = https://github.com/lwip-tcpip/lwip.git
+[submodule "littlefs"]
+	path = littlefs
+	url = https://github.com/littlefs-project/littlefs.git
