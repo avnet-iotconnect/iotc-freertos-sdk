@@ -19,14 +19,17 @@
 #define PUBLISH_TOPIC_FORMAT	"$aws/rules/msg_d2c_rpt/%s/2.1/0"
 //#define PUBLISH_TOPIC_FORMAT	"$aws/things/%s/shadow/name/setting_info/report"
 
-// @brief 	Queue size of acknowledgements offloaded to the vMQTTSubscribeTask
-#define ACK_MSG_Q_SIZE	5
-
 // @brief 	Length of buffer to hold subscribe topic string containing the device id (thing_name)
 #define MQTT_SUBSCRIBE_TOPIC_STR_LEN           	( 256 )
 
+// @brief 	Max number of queued commands that the command handling task can have pending without dropping commands
+#define MQTT_COMMAND_QUEUE_LENGTH				( 5 )
+
 // @brief 	Size of statically allocated buffers for holding payloads.
-#define confgPAYLOAD_BUFFER_LENGTH           	( 1024 )
+#define MQTT_PAYLOAD_BUFFER_LENGTH           	( 1024 )
+
+// @brief	Max time to wait to queue incoming command on the command queue
+#define MQTT_COMMAND_QUEUE_TIMEOUT_MS      		( 500 )
 
 // @brief	Size of statically allocated buffers for holding topic names and payloads.
 #define MQTT_PUBLISH_MAX_LEN                 ( 1024 )
@@ -40,31 +43,19 @@
 typedef void (*IotConnectC2dCallback)(char* message, size_t message_len);
 
 typedef struct {
-    char *host;    			// Host to connect the client to
-    int port;				// MQTT Port to connect to
-    char *device_name;   	// Name of the device
-	char *sub_topic;
-    char *pub_topic;
+	const char *host;    	// Host to connect the client to
+	const char *duid;   	// Name of the device
+	const char *c2d_topic;
     IotConnectAuth *auth; 				// Pointer to IoTConnect auth configuration
     IotConnectC2dCallback c2d_msg_cb; 	// callback for inbound messages
     IotConnectStatusCallback status_cb; // callback for connection status
-} IotConnectAWSMQTTConfig;
+} IotConnectDeviceClientConfig;
 
 
-int awsmqtt_client_init(IotConnectAWSMQTTConfig *c, IotConnectAwsrtosConfig* awsrtos_config);
-void awsmqtt_client_disconnect(void);
-bool awsmqtt_client_is_connected(void);
-int awsmqtt_send_message(const char *message);	// send a null terminated string to MQTT host
-
-MQTTStatus_t vSetMQTTConfig( const char *host,
-						  int port,
-						  const char *device_id,
-						  const char *sub_topic,
-						  const char *pub_topic,
-						  PkiObject_t root_ca_cert,
-						  PkiObject_t device_cert,
-						  PkiObject_t device_key);
-
+int iotc_device_client_connect(IotConnectDeviceClientConfig *client_config);
+void iotc_device_client_disconnect(void);
+bool iotc_device_client_is_connected(void);
+void iotc_device_client_mqtt_publish(const char *topic, const char *json_str);
 
 
 /**

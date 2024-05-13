@@ -7,10 +7,12 @@
 #define IOTCONNECT_H
 
 #include <stddef.h>
-#include "iotconnect_event.h"
-#include "iotconnect_telemetry.h"
-#include "iotconnect_discovery.h" // for sync enums
-#include "iotconnect_lib.h"
+#include "iotcl.h"
+#include "iotcl_c2d.h"
+#include "iotcl_certs.h"
+#include "iotcl_cfg.h"
+#include "iotcl_log.h"
+#include "iotcl_util.h"
 #include "PkiObject.h"
 
 #ifdef __cplusplus
@@ -21,7 +23,6 @@ typedef enum {
     UNDEFINED,
     MQTT_CONNECTED,
     MQTT_DISCONNECTED,
-    // MQTT_FAILED, this status is not applicable to AzureRTOS implementation
     // TODO: Sync statuses etc.
 } IotConnectConnectionStatus;
 
@@ -33,15 +34,7 @@ typedef enum {
 typedef void (*IotConnectStatusCallback)(IotConnectConnectionStatus data);
 
 typedef struct {
-	const char *host;
-//	const char *telemetry_cd;		// Device template "cd"
-} IotConnectAwsrtosConfig;
-
-
-
-typedef struct {
     IotConnectAuthType type;
-
     PkiObject_t mqtt_root_ca;
 
     union { // union because we may support different types of auth
@@ -60,31 +53,27 @@ typedef struct {
     IotConnectAuth auth_info;
     IotclOtaCallback ota_cb; // callback for OTA events.
     IotclCommandCallback cmd_cb; // callback for command events.
-    IotclMessageCallback msg_cb; // callback for ALL messages, including the specific ones like cmd or ota callback.
     IotConnectStatusCallback status_cb; // callback for connection status
 } IotConnectClientConfig;
 
+typedef struct {
+	char *host;
+} IotConnectCustomMQTTConfig;
+
 
 IotConnectClientConfig *iotconnect_sdk_init_and_get_config();
-
-int iotconnect_sdk_init(IotConnectAwsrtosConfig *config);
-
-IotclSyncResult iotconnect_get_last_sync_result();
-
-bool iotconnect_sdk_is_connected();
-
-IotclConfig *iotconnect_sdk_get_lib_config();
-
+int iotconnect_sdk_init(IotConnectCustomMQTTConfig *custom_mqtt_config);
+bool iotconnect_sdk_is_connected(void);
 void iotconnect_sdk_send_packet(const char *data);
 
-/* NoteL: Neither IotConnectSdk_receive nor iotconnect_sdk_poll are used by this
+/* Note: Neither IotConnectSdk_receive nor iotconnect_sdk_poll are used by this
  * STM U5 AWS implementation.  An internal thread handles the receipt of messages
  * on the subscribed topic
  */
 
 // Receive loop hook forever-blocking for for C2D messages.
 // Either call this function, or IoTConnectSdk_Poll()
-void iotconnect_sdk_receive();
+void iotconnect_sdk_receive(void);
 
 // Receive poll hook for for C2D messages.
 // Either call this function, or IotConnectSdk_Receive()
@@ -93,7 +82,8 @@ void iotconnect_sdk_poll(int wait_time_ms);
 
 void iotconnect_sdk_disconnect();
 
-void iotc_ota_fw_download(const char* host, const char* path);
+int iotc_ota_fw_download(const char* host, const char* path);
+int iotc_ota_fw_apply(void);
 
 
 #ifdef __cplusplus

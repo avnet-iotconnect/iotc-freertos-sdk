@@ -5,11 +5,11 @@
  *      Author: mgilhespie
  */
 
-#ifndef AWS_FREERTOS_TIME_TIME_H_
-#define AWS_FREERTOS_TIME_TIME_H_
+#ifndef IOTC_SNTP_TIME_H_
+#define IOTC_SNTP_TIME_H_
 
 
 bool is_sntp_time_synced(void);
 
 
-#endif /* AWS_FREERTOS_TIME_TIME_H_ */
+#endif /* IOTC_SNTP_TIME_H_ */

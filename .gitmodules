@@ -1,7 +1,6 @@
 [submodule "iotc-c-lib"]
-	path = iotc-c-lib
+	path = iotc-c-lib-sparse
 	url = https://github.com/avnet-iotconnect/iotc-c-lib.git
-	branch = awsformat-2.1_changes_to_processing_events_and_acks
 [submodule "cJSON"]
 	path = cJSON
 	url = https://github.com/DaveGamble/cJSON.git

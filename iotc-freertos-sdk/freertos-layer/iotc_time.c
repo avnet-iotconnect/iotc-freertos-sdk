@@ -8,17 +8,18 @@
 #include <time.h>
 #include "FreeRTOS.h"
 #include "task.h"
-#include "iotconnect_common.h"
+#include "iotcl.h"
+#include "iotcl_c2d.h"
+#include "iotcl_certs.h"
+#include "iotcl_cfg.h"
+#include "iotcl_log.h"
+#include "iotcl_util.h"
 #include "stdint.h"
 #include "stdbool.h"
-#include "logging_levels.h"
-#include "logging.h"
 #include "event_groups.h"
 #include "sys_evt.h"
 
 #define SNTP_SERVER_NAME					"pool.ntp.org"
-
-#define TX_TIMER_TICKS_PER_SECOND			1000 // FIXME: Replace with configTICK_RATE_HZ
 
 #ifndef IOTC_MTB_TIME_MAX_TRIES
 #define IOTC_MTB_TIME_MAX_TRIES 			10
@@ -38,14 +39,14 @@ uint32_t tx_time_get(void)
 
 void set_time(uint32_t unix_seconds)
 {
-	uint32_t system_time_in_seconds = tx_time_get() / TX_TIMER_TICKS_PER_SECOND;
+	uint32_t system_time_in_seconds = tx_time_get() / configTICK_RATE_HZ;
     unix_time_base = (unix_seconds - system_time_in_seconds);
 }
 
 int unix_time_get(uint32_t *unix_time)
 {
     /* Return number of seconds since Unix Epoch (1/1/1970 00:00:00).  */
-	*unix_time =  unix_time_base + (tx_time_get() / TX_TIMER_TICKS_PER_SECOND);
+	*unix_time =  unix_time_base + (tx_time_get() / configTICK_RATE_HZ);
 	return 0;
 }
 
@@ -65,8 +66,6 @@ void iotc_set_system_time_us(uint32_t sec, uint32_t us)
 //    taskEXIT_CRITICAL();
 
     time_t timenow = time(NULL);
-    LogInfo("Time set to: %s!\n", iotcl_to_iso_timestamp(timenow));
-
 }
 
 int iotc_stm_aws_time_obtain(const char *server)
@@ -87,18 +86,16 @@ int iotc_stm_aws_time_obtain(const char *server)
     }
 
     if (!reachable) {
-        LogWarn("Unable to get time!\n");
+        IOTCL_WARN(reachable, " sntp host unreachable, unable to sync time!\n");
         return -1;
     }
 
     if (!callback_received) {
-        LogWarn("No callback was received from SNTP module. Ensure that iotc_set_system_time_us is defined as SNTP_SET_SYSTEM_TIME_US callback!\n");
+        IOTCL_WARN(0, "No callback was received from SNTP module. Ensure that iotc_set_system_time_us is defined as SNTP_SET_SYSTEM_TIME_US callback!\n");
         return -1;
     }
 
     timenow = time(NULL);
-    LogInfo("Time received from NTP. Time now: %s!\n", iotcl_to_iso_timestamp(timenow));
-
     return 0;
 }
 
@@ -112,7 +109,7 @@ bool is_sntp_time_synced(void)
 
 void sntp_task( void * pvParameters )
 {
-	LogInfo("Started SNTP task, wait for connection to network");
+	IOTCL_INFO("Started SNTP task, wait for connection to network");
 
 	while (xSystemEvents == NULL) {
 		vTaskDelay(100);
@@ -124,7 +121,7 @@ void sntp_task( void * pvParameters )
                                   pdTRUE,
                                   portMAX_DELAY );
 
-	LogInfo("syncing time using SNTP");
+	IOTCL_INFO("syncing time using SNTP");
 
     iotc_stm_aws_time_obtain(SNTP_SERVER_NAME);
 

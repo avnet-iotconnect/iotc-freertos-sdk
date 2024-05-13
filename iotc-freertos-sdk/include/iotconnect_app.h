@@ -10,6 +10,8 @@
 /* Kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
+#include "message_buffer.h"
 
 #include "kvstore.h"
 #include "mbedtls_transport.h"
@@ -29,15 +31,22 @@
 
 //Iotconnect
 #include "iotconnect.h"
-#include "iotconnect_app.h"
-#include "iotconnect_lib.h"
-#include "iotconnect_telemetry.h"
-#include "iotconnect_event.h"
+#include "iotcl.h"
+#include "iotcl_c2d.h"
+#include "iotcl_certs.h"
+#include "iotcl_cfg.h"
+#include "iotcl_log.h"
+#include "iotcl_telemetry.h"
+#include "iotcl_util.h"
 #include <iotconnect_config.h>
 
 // Constants
-#define APP_VERSION 			"02.24.07"		// Version string
+#define APP_VERSION 			"05.09.24"		// Version string
 #define MQTT_PUBLISH_PERIOD_MS 	( 3000 )		// Size of statically allocated buffers for holding topic names and payloads.
+
+#ifndef IOTC_APP_QUEUE_SIZE_TELEMETRY
+#define IOTC_APP_QUEUE_SIZE_TELEMETRY 5
+#endif
 
 #ifndef pkcs11_MQTT_ROOT_CA_CERT_LABEL
 #define pkcs11_MQTT_ROOT_CA_CERT_LABEL                          "root_ca_cert"
@@ -65,10 +74,13 @@ __weak void set_led_freq(int freq);
 #endif // IOTC_USE_LED
 
 // Prototypes
-__weak char *iotcApp_create_telemetry_json(IotclMessageHandle msg, const void * pToTelemetryStruct, size_t siz);
-static void on_command(IotclEventData data);
-void command_status(IotclEventData data, bool status, const char *command_name, const char *message);
-static void on_ota(IotclEventData data);
+extern MessageBufferHandle_t iotcAppQueueTelemetry;
+__weak void iotcApp_create_and_send_telemetry_json(
+		const void *pToTelemetryStruct, size_t siz);
+static void on_command(IotclC2dEventData data);
+void command_status(IotclC2dEventData data, bool status,
+		const char *command_name, const char *message);
+static void on_ota(IotclC2dEventData data);
 static int split_url(const char *url, char **host_name, char**resource);
 static bool is_app_version_same_as_ota(const char *version);
 static bool app_needs_ota_update(const char *version);
@@ -207,9 +219,13 @@ static int start_ota(char *url);
 #ifndef MBEDTLS_CHACHAPOLY_C
 #error "missing required MBEDTLS define"
 #endif
+
+#if 0  // FIXME: Not used by U5
 #ifndef MBEDTLS_DES_C
 #error "missing required MBEDTLS define"
 #endif
+#endif
+
 #ifndef MBEDTLS_DHM_C
 #error "missing required MBEDTLS define"
 #endif

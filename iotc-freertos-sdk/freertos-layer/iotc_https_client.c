@@ -5,12 +5,7 @@
  *      Author: mgilhespie
  */
 
-#include "logging_levels.h"
-#define LOG_LEVEL	LOG_WARN
-#include "logging.h"
-
 /* Standard library includes */
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -21,17 +16,12 @@
 #include "queue.h"
 
 #include "sys_evt.h"
-//TODO: won't work forever
-#include "stm32h5xx.h"
-
 #include "kvstore.h"
 #include "hw_defs.h"
 #include <string.h>
 
 #include "lfs.h"
 #include "lfs_port.h"
-//TODO: won't work forever
-#include "stm32h5xx_ll_rng.h"
 
 #include "core_http_client.h"
 #include "transport_interface.h"
@@ -50,11 +40,13 @@
 
 //Iotconnect
 #include "iotconnect.h"
-#include "iotconnect_lib.h"
-#include "iotconnect_telemetry.h"
-#include "iotconnect_event.h"
-#include "iotconnect_discovery.h"
-#include "iotconnect_certs.h"
+#include "iotcl.h"
+#include "iotcl_c2d.h"
+#include "iotcl_certs.h"
+#include "iotcl_cfg.h"
+#include "iotcl_log.h"
+#include "iotcl_util.h"
+
 #include "iotconnect_config.h"
 #include "iotc_https_client.h"
 
@@ -115,8 +107,7 @@ int32_t iotc_send_http_request(IotConnectHttpResponse *iotc_response,
     pNetworkContext = configure_transport();
 
     if (pNetworkContext == NULL) {
-    	LogError("failed to configure network context");
-    	vTaskDelay(200);
+    	IOTCL_ERROR(-1, "failed to configure network context");
     	return EXIT_FAILURE;
     }
 
@@ -126,7 +117,7 @@ int32_t iotc_send_http_request(IotConnectHttpResponse *iotc_response,
                                             0, 0 );
 
     if (xNetworkStatus != TLS_TRANSPORT_SUCCESS) {
-    	LogError("Failed to connect to HTTPS server :5s", server_host);
+    	IOTCL_ERROR(-1, "Failed to connect to HTTPS server :5s", server_host);
     	mbedtls_transport_free(pNetworkContext);
         return EXIT_FAILURE;
     }
@@ -171,11 +162,9 @@ int32_t iotc_send_http_request(IotConnectHttpResponse *iotc_response,
 
     httpStatus = HTTPClient_InitializeRequestHeaders( &requestHeaders, &requestInfo );
 
-    if( httpStatus == HTTPSuccess )
-    {
-        LogInfo( ("Sending HTTPS %s request to %s %s...", requestInfo.pMethod, server_host, requestInfo.pPath) );
-
-        LogInfo("requestHeaders: %s", requestHeaders.pBuffer);
+    if( httpStatus == HTTPSuccess ) {
+        IOTCL_INFO("Sending HTTPS %s request to %s %s...", requestInfo.pMethod, server_host, requestInfo.pPath);
+        IOTCL_INFO("requestHeaders: %s", requestHeaders.pBuffer);
 
         /* Send the request and receive the response. */
         httpStatus = HTTPClient_Send( &transportInterface,
@@ -184,43 +173,32 @@ int32_t iotc_send_http_request(IotConnectHttpResponse *iotc_response,
                                       2,
                                       &response,
                                       0 );
-
-        LogInfo("HTTPClient_Send complete");
-        vTaskDelay(300);
-    }
-    else
-    {
-        LogError( ( "Failed to initialize HTTP request headers: Error=%s.", HTTPClient_strerror( httpStatus ) ) );
+    } else {
+        IOTCL_ERROR(httpStatus, "Failed to initialize HTTP request headers: Error=%s", HTTPClient_strerror(httpStatus));        
     }
 
-    if( httpStatus == HTTPSuccess )
-    {
+    if( httpStatus == HTTPSuccess ) {
     	iotc_response->data = response.pBody;
 
-    	LogInfo("\n\n... printing HTTP response ...\r\n");
-        LogInfo( ("Received HTTP response from %s %s...\r\n", server_host, requestInfo.pPath));
-        LogInfo( ("Response Headers:\r\n%s\r\n", response.pHeaders));
-        LogInfo( ("Response Status:\r\n%u\r\n", response.statusCode));
-    	LogInfo( ("Response Body ptr: %08x\n", (uint32_t)response.pBody));
-        LogInfo( ("Response Body:\n%s\n", response.pBody));
-    	LogInfo("\n\n... finished printing HTTP response ...\n\n");
-    }
-    else
-    {
+        IOTCL_INFO("Received HTTP response from %s %s...", server_host, requestInfo.pPath);
+        IOTCL_INFO("Response Headers:\r\n%s", response.pHeaders);
+        IOTCL_INFO("Response Status:\r\n%u", response.statusCode);
+        IOTCL_INFO("Response Body:\r\n%s", response.pBody);
+    	IOTCL_INFO("\r\n-------------------------");
+    } else {
     	iotc_response->data = NULL;
 
-        LogError(( "Failed to send HTTP %s request to %s %s: Error=%s.",
+        IOTCL_ERROR(httpStatus, "Failed to send HTTP %s request to %s %s: Error=%s.",
                     requestInfo.pMethod,
                     server_host,
                     requestInfo.pPath,
-                    HTTPClient_strerror( httpStatus)) );
+                    HTTPClient_strerror(httpStatus));
     }
 
     mbedtls_transport_disconnect(pNetworkContext);
     mbedtls_transport_free(pNetworkContext);
 
-    if( httpStatus != HTTPSuccess )
-    {
+    if( httpStatus != HTTPSuccess ) {
         returnStatus = EXIT_FAILURE;
     }
 
@@ -239,21 +217,19 @@ static NetworkContext_t *configure_transport(void)
     NetworkContext_t *pxNetworkContext;
 
     if (pxRootCaChain[0].xForm == OBJ_FORM_NONE || pxRootCaChain[0].uxLen == 0) {
-    	LogError("godaddy_ca_cert not set");
+    	IOTCL_ERROR(0, "HTTPS CA Certificate not set");
     	return NULL;
     }
 
 	pxNetworkContext = mbedtls_transport_allocate();
 
-	if( pxNetworkContext == NULL )
-	{
-		LogError( "Failed to allocate an mbedtls transport context." );
+	if( pxNetworkContext == NULL ) {
+		IOTCL_ERROR(0, "Failed to allocate an mbedtls transport context." );
 		xMQTTStatus = MQTTNoMemory;
 		return NULL;
 	}
 
-    if( xMQTTStatus == MQTTSuccess )
-    {
+    if( xMQTTStatus == MQTTSuccess ) {
         xTlsStatus = mbedtls_transport_configure( pxNetworkContext,
                                                   NULL,					//pcAlpnProtocols,
                                                   NULL,
@@ -261,11 +237,9 @@ static NetworkContext_t *configure_transport(void)
 												  pxRootCaChain,
                                                   1 );
 
-        if( xTlsStatus != TLS_TRANSPORT_SUCCESS )
-        {
-            LogError( "Failed to configure mbedtls transport." );
+        if( xTlsStatus != TLS_TRANSPORT_SUCCESS ) {
+            IOTCL_ERROR(xTlsStatus, "Failed to configure mbedtls transport." );
             xMQTTStatus = MQTTBadParameter;
-
             mbedtls_transport_free(pxNetworkContext);
             return NULL;
         }

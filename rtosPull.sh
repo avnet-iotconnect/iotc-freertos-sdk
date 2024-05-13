@@ -87,7 +87,7 @@ if [[ $CHOICES == *"FreeRTOS-Plus"* ]]; then
         cd iotc-freertos
         git sparse-checkout init --cone
         git submodule init $FREERTOS_SUBMOD_PATHS
-        git submodule update        
+        git submodule update
         if [[ $CHOICES == *"coreMQTT-Agent"* ]]; then
             git -C FreeRTOS-Plus/Source/Application-Protocols/coreMQTT-Agent/ sparse-checkout init --cone
             git -C FreeRTOS-Plus/Source/Application-Protocols/coreMQTT-Agent/ sparse-checkout add source
@@ -126,10 +126,10 @@ if [[ $CHOICES == *"FreeRTOS-Plus"* ]]; then
     fi
 fi
 
-git submodule init iotc-c-lib
-git submodule update --remote iotc-c-lib
-git -C iotc-c-lib sparse-checkout init --cone
-git -C iotc-c-lib sparse-checkout add include src tools
+git submodule init iotc-c-lib-sparse
+git submodule update iotc-c-lib-sparse
+git -C iotc-c-lib-sparse sparse-checkout init --cone
+git -C iotc-c-lib-sparse sparse-checkout add core lib modules tools
 
 git submodule init cJSON
 git submodule update cJSON
@@ -175,9 +175,11 @@ if [[ $CHOICES == *"FreeRTOS-Plus"* ]]; then
     INCLUDES+=( $(find iotc-freertos -type d -and -name include) )
 fi
 
-INCLUDES+=( $(find iotc-c-lib -type d -and -name include) )
-INCLUDES+=( $(find iotc-awsrtos-sdk-placeholder -type d -and -name include) )
-INCLUDES+=( "iotc-awsrtos-sdk-placeholder/awsrtos-layer/sntp" )
+INCLUDES+=( $(find iotc-c-lib-sparse -type d -and -name include) )
+INCLUDES+=( $(find iotc-c-lib-sparse -type d -and -name device-rest-api) )
+INCLUDES+=( $(find iotc-c-lib-sparse -type d -and -name heap-tracker) )
+INCLUDES+=( $(find iotc-freertos-sdk -type d -and -name include) )
+INCLUDES+=( "iotc-freertos-sdk/freertos-layer/sntp" )
 
 if [[ $CHOICES == *"lwip"* ]]; then
     INCLUDES+=( $(find lwip -type d -and -name include) )
