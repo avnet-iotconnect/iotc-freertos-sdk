@@ -57,7 +57,6 @@
 
 /* Constants */
 #define HTTPS_PORT				443
-#define DISCOVERY_SERVER_HOST	"awsdiscovery.iotconnect.io"
 
 #define RESPONSE_BUFFER_SZ		4096
 #define METHOD_BUFFER_SZ		256
@@ -68,8 +67,8 @@ static IotConnectClientConfig config = { 0 };
 static IotConnectDeviceClientConfig client_config;
 
 /* Prototypes */
-static int run_http_identity(const char *cpid, const char *env,
-		const char *duid);
+static int run_http_identity(IotConnectConnectionType connection_type, const char *cpid, const char *env,
+                             const char *duid);
 static int iotconnect_https_request(IotConnectHttpResponse *response,
 		const char *host_name, const char *url);
 
@@ -95,9 +94,16 @@ int iotconnect_sdk_init(IotConnectCustomMQTTConfig *custom_mqtt_config) {
     IOTCL_INFO("iotconnect_sdk_init");
 
     if (config.cpid == NULL || config.env == NULL || config.duid == NULL) {
-    	IOTCL_ERROR(0, "iotconnect_sdk_init failed, config uninitialized");
-    	return -1;
+    	IOTCL_ERROR(IOTCL_ERR_MISSING_VALUE, "iotconnect_sdk_init failed, config uninitialized");
+    	return IOTCL_ERR_MISSING_VALUE;
     }
+
+    if (config.connection_type != IOTC_CT_AWS && config.connection_type != IOTC_CT_AZURE) {
+        IOTCL_ERROR(IOTCL_ERR_MISSING_VALUE, "Error: Device configuration is invalid. Must set connection type");
+        iotconnect_sdk_deinit();
+        return IOTCL_ERR_MISSING_VALUE;
+    }
+
 
     strncpy(cpid_buff, config.cpid, 5);
     cpid_buff[5] = 0;
@@ -132,7 +138,7 @@ int iotconnect_sdk_init(IotConnectCustomMQTTConfig *custom_mqtt_config) {
 
 		iotconnect_https_init(https_ca_cert);
 
-		if ((ret = run_http_identity(config.cpid, config.env, config.duid))
+		if ((ret = run_http_identity(config.connection_type, config.cpid, config.env, config.duid))
 				!= 0) {
 			IOTCL_ERROR(ret, "Failed to perform http identity");
 			return -1;
@@ -192,12 +198,13 @@ void iotconnect_sdk_deinit(void) {
  *
  * Or split into two functions as azure-rtos does
  */
-static int run_http_identity(const char *cpid, const char *env,
+static int run_http_identity(IotConnectConnectionType connection_type, const char *cpid, const char *env,
 		const char *duid) {
 	IotclDraUrlContext discovery_url = { 0 };
 	IotclDraUrlContext identity_url = { 0 };
 	IotclClientConfig config;
 	IotConnectHttpResponse http_response;
+	int status;
 
 	IOTCL_INFO("IOTC: Performing discovery...");
 
@@ -208,32 +215,58 @@ static int run_http_identity(const char *cpid, const char *env,
 		return -1;
 	}
 
-	iotcl_dra_discovery_init_url_aws(&discovery_url, cpid, env);
+    switch (connection_type) {
+        case IOTC_CT_AWS:
+            status = iotcl_dra_discovery_init_url_aws(&discovery_url, cpid, env);
 
-	// run HTTP GET with your http client with application/json content type
-	iotconnect_https_request(&http_response, DISCOVERY_SERVER_HOST,
-			iotcl_dra_url_get_url(&discovery_url));
+            if (IOTCL_SUCCESS == status) {
+                IOTCL_INFO("Using AWS discovery URL %s\n", iotcl_dra_url_get_url(&discovery_url));
+            }
+            break;
+        case IOTC_CT_AZURE:
+            status = iotcl_dra_discovery_init_url_azure(&discovery_url, cpid, env);
+            if (IOTCL_SUCCESS == status) {
+                IOTCL_INFO("Using Azure discovery URL %s\n", iotcl_dra_url_get_url(&discovery_url));
+            }
+            break;
+        default:
+            IOTCL_ERROR(IOTCL_ERR_BAD_VALUE, "Unknown connection type %d\n", connection_type);
+            status =  IOTCL_ERR_BAD_VALUE;
+    }
 
-	// parse the REST API base URL from discovery response
-	iotcl_dra_discovery_parse(&identity_url, 0, http_response.data);
+    if (status == 0) {
+        // run HTTP GET with your http client with application/json content type
+        iotconnect_https_request(&http_response, iotcl_dra_url_get_hostname(&discovery_url),
+                                 iotcl_dra_url_get_url(&discovery_url));
 
-	// build  the actual identity API REST url on top of the base URL
-	iotcl_dra_identity_build_url(&identity_url, duid);
+	    // parse the REST API base URL from discovery response
+	    iotcl_dra_discovery_parse(&identity_url, 0, http_response.data);
 
-	char *host_name = iotcl_dra_url_get_hostname(&identity_url);
+	    // build  the actual identity API REST url on top of the base URL
+	    iotcl_dra_identity_build_url(&identity_url, duid);
 
-	// run HTTP GET with your http client with application/json content type
-	iotconnect_https_request(&http_response,
-			iotcl_dra_url_get_hostname(&identity_url),
-			iotcl_dra_url_get_url(&identity_url));
+	    char *host_name = iotcl_dra_url_get_hostname(&identity_url);
 
-	// pass the body of the response to configure the MQTT library
-	iotcl_dra_identity_configure_library_mqtt(http_response.data);
+	    // run HTTP GET with your http client with application/json content type
+	    iotconnect_https_request(&http_response,
+			    iotcl_dra_url_get_hostname(&identity_url),
+			    iotcl_dra_url_get_url(&identity_url));
 
-	// from here on you can call iotcl_mqtt_get_config() and use the iotcl mqtt functions
+	    // pass the body of the response to configure the MQTT library
+	    iotcl_dra_identity_configure_library_mqtt(http_response.data);
 
-	iotcl_dra_url_deinit(&discovery_url);
-	iotcl_dra_url_deinit(&identity_url);
+	    // from here on you can call iotcl_mqtt_get_config() and use the iotcl mqtt functions
+
+        if (connection_type == IOTC_CT_AWS && iotcl_mqtt_get_config()->username) {
+            // workaround for identity returning username for AWS.
+            // https://awspoc.iotconnect.io/support-info/2024036163515369
+            iotcl_free(iotcl_mqtt_get_config()->username);
+            iotcl_mqtt_get_config()->username = NULL;
+        }
+
+	    iotcl_dra_url_deinit(&discovery_url);
+	    iotcl_dra_url_deinit(&identity_url);
+    }
 
 	if (response_buffer != NULL) {
 		free(response_buffer);
@@ -243,7 +276,7 @@ static int run_http_identity(const char *cpid, const char *env,
 
 	iotcl_mqtt_print_config();
 
-	return 0;
+	return status;
 }
 
 

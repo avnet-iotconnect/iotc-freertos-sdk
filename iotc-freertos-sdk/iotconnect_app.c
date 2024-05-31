@@ -86,11 +86,12 @@ void iotconnect_app( void * )
     // using the conf command.
 
     char *device_id = KVStore_getStringHeap(CS_CORE_THING_NAME, NULL);   // Device ID
+    char *platform = KVStore_getStringHeap(CS_IOTC_PLATFORM, NULL);
     char *cpid = KVStore_getStringHeap(CS_IOTC_CPID, NULL);
     char *iotc_env = KVStore_getStringHeap(CS_IOTC_ENV, NULL);
 
-    if (device_id == NULL || cpid == NULL || iotc_env == NULL) {
-    	LogError("IOTC configuration, thing_name, cpid or env are not set\n");
+    if (platform == NULL || device_id == NULL || cpid == NULL || iotc_env == NULL) {
+    	LogError("IOTC configuration, platform, thing_name, cpid or env are not set\n");
 		vTaskDelete(NULL);
     }
 
@@ -121,6 +122,15 @@ void iotconnect_app( void * )
 
     config->status_cb = NULL;
     config->auth_info.type = IOTC_X509;
+
+    if (strcmp(platform, "aws") == 0) {
+        config->connection_type = IOTC_CT_AWS;
+    } else if (strcmp(platform, "azure") == 0) {
+        config->connection_type = IOTC_CT_AZURE;
+    } else {
+        config->connection_type = IOTC_CT_UNDEFINED;
+    }
+
     config->auth_info.mqtt_root_ca               = xPkiObjectFromLabel( TLS_MQTT_ROOT_CA_CERT_LABEL );
     config->auth_info.data.cert_info.device_cert = xPkiObjectFromLabel( TLS_CERT_LABEL );
     config->auth_info.data.cert_info.device_key  = xPkiObjectFromLabel( TLS_KEY_PRV_LABEL );;

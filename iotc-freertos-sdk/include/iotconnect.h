@@ -31,6 +31,13 @@ typedef enum {
 	IOTC_X509, 		// Private key and ceritificate
 } IotConnectAuthType;
 
+typedef enum {
+    IOTC_CT_UNDEFINED = 0,
+    IOTC_CT_AWS,
+    IOTC_CT_AZURE
+} IotConnectConnectionType;
+
+
 typedef void (*IotConnectStatusCallback)(IotConnectConnectionStatus data);
 
 typedef struct {
@@ -47,6 +54,7 @@ typedef struct {
 } IotConnectAuth;
 
 typedef struct {
+    IotConnectConnectionType connection_type;
     char *env;    // Environment name. Contact your representative for details.
     char *cpid;   // Settings -> Company Profile.
     char *duid;   // Name of the device.
