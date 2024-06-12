@@ -79,11 +79,6 @@ int iotc_device_client_connect(IotConnectDeviceClientConfig *c) {
     BaseType_t xResult;
     MQTTStatus_t xMQTTStatus;
 
-	IotclMqttConfig *mc = iotcl_mqtt_get_config();
-	if (!mc) {
-		return IOTCL_ERR_CONFIG_MISSING;
-	}
-
 	configASSERT( xResult == MQTTSuccess );
 
 	xResult = xTaskCreate(vMQTTAgentTask, "MQTTAgent", 4096, (void*) c, 10,
