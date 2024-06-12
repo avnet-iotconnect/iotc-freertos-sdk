@@ -249,22 +249,23 @@ static int run_http_identity(IotConnectConnectionType connection_type, const cha
 	    char *host_name = iotcl_dra_url_get_hostname(&identity_url);
 
 	    // run HTTP GET with your http client with application/json content type
-	    iotconnect_https_request(&http_response,
-			    iotcl_dra_url_get_hostname(&identity_url),
-			    iotcl_dra_url_get_url(&identity_url));
+	    if(host_name) {
+			iotconnect_https_request(&http_response,
+					iotcl_dra_url_get_hostname(&identity_url),
+					iotcl_dra_url_get_url(&identity_url));
 
-	    // pass the body of the response to configure the MQTT library
-	    iotcl_dra_identity_configure_library_mqtt(http_response.data);
+			// pass the body of the response to configure the MQTT library
+			iotcl_dra_identity_configure_library_mqtt(http_response.data);
 
-	    // from here on you can call iotcl_mqtt_get_config() and use the iotcl mqtt functions
+			// from here on you can call iotcl_mqtt_get_config() and use the iotcl mqtt functions
 
-        if (connection_type == IOTC_CT_AWS && iotcl_mqtt_get_config()->username) {
-            // workaround for identity returning username for AWS.
-            // https://awspoc.iotconnect.io/support-info/2024036163515369
-            iotcl_free(iotcl_mqtt_get_config()->username);
-            iotcl_mqtt_get_config()->username = NULL;
-        }
-
+			if (connection_type == IOTC_CT_AWS && iotcl_mqtt_get_config()->username) {
+				// workaround for identity returning username for AWS.
+				// https://awspoc.iotconnect.io/support-info/2024036163515369
+				iotcl_free(iotcl_mqtt_get_config()->username);
+				iotcl_mqtt_get_config()->username = NULL;
+			}
+	    }
 	    iotcl_dra_url_deinit(&discovery_url);
 	    iotcl_dra_url_deinit(&identity_url);
     }
