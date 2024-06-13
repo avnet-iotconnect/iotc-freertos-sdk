@@ -84,10 +84,10 @@ int iotc_device_client_connect(IotConnectDeviceClientConfig *c) {
 	//screen for bad inputs
 	if(!c ||
 			!c->c2d_topic ||
-			!c->duid ||
+			!c->cfg->duid ||
 			!c->auth ||
 			!c->host ||
-			!c->username ){
+			(c->cfg->connection_type == IOTC_CT_AZURE && !c->cfg->username) ){
 		return -1;
 	}
 

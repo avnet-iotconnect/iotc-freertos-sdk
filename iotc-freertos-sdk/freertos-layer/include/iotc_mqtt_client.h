@@ -43,12 +43,11 @@
 typedef void (*IotConnectC2dCallback)(char* message, size_t message_len);
 
 typedef struct {
-    const char *username;     // For AWS, username will be NULL.
 	const char *host;    	// Host to connect the client to
-	const char *duid;   	// Name of the device
 	const char *c2d_topic;
     IotConnectAuth *auth; 				// Pointer to IoTConnect auth configuration
-    IotConnectC2dCallback c2d_msg_cb; 	// callback for inbound messages
+    IotConnectClientConfig *cfg;
+	IotConnectC2dCallback c2d_msg_cb; 	// callback for inbound messages
     IotConnectStatusCallback status_cb; // callback for connection status
 } IotConnectDeviceClientConfig;
 

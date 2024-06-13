@@ -55,6 +55,7 @@ typedef struct {
 
 typedef struct {
     IotConnectConnectionType connection_type;
+    char *username;     // For AWS, username will be NULL.
     char *env;    // Environment name. Contact your representative for details.
     char *cpid;   // Settings -> Company Profile.
     char *duid;   // Name of the device.

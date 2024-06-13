@@ -112,6 +112,7 @@ int iotconnect_sdk_init(IotConnectCustomMQTTConfig *custom_mqtt_config) {
     IOTCL_INFO("IOTC: DUID:  %s\r\n", config.duid);
 
 	memset(&client_config, 0, sizeof(client_config));
+	client_config.cfg = &config;
 
 
 	iotcl_init_client_config(&iotcl_cfg);
@@ -168,10 +169,10 @@ int iotconnect_sdk_init(IotConnectCustomMQTTConfig *custom_mqtt_config) {
 		client_config.c2d_topic = custom_c2d_topic;
 	}
 
-	client_config.duid = iotcl_mqtt_get_config()->client_id;
+	client_config.cfg->duid = iotcl_mqtt_get_config()->client_id;
 	client_config.auth = &config.auth_info;
 	client_config.status_cb = NULL;  // TODO: on_iotconnect_status;
-	client_config.username = iotcl_mqtt_get_config()->username;
+	client_config.cfg->username = iotcl_mqtt_get_config()->username;
 
 	IOTCL_INFO("IOTC: Initializing the mqtt connection");
 
