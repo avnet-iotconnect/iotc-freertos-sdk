@@ -81,6 +81,16 @@ int iotc_device_client_connect(IotConnectDeviceClientConfig *c) {
 
 	configASSERT( xResult == MQTTSuccess );
 
+	//screen for bad inputs
+	if(!c ||
+			!c->c2d_topic ||
+			!c->duid ||
+			!c->auth ||
+			!c->host ||
+			!c->username ){
+		return -1;
+	}
+
 	xResult = xTaskCreate(vMQTTAgentTask, "MQTTAgent", 4096, (void*) c, 10,
 			NULL);
     
