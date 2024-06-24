@@ -279,12 +279,14 @@ int iotc_ota_fw_apply(void) {
 	OtaPalStatus_t pal_status;
 
     IOTCL_INFO("OTA: Applying firmware. Resetting the board.\r\n");
-
-	//pal_status = otaPal_ActivateNewImage((OtaFileContext_t * const)NULL);
+    vTaskDelay( pdMS_TO_TICKS( 5000 ) );
+	pal_status = otaPal_ActivateNewImage();
 	if (OtaPalSuccess != pal_status) {
 		IOTCL_ERROR(pal_status, "OTA failed activate the downloaded firmware");
+        vTaskDelay( pdMS_TO_TICKS( 5000 ) );
 	}
 
+	return pal_status;
 }
 
 #include "sys_evt.h"

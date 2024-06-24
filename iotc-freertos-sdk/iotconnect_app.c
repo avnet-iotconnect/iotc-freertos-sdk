@@ -283,6 +283,7 @@ static void on_ota(IotclC2dEventData data) {
 	const char *ack_id = iotcl_c2d_get_ack_id(data);
     bool success = false;
     int needs_ota_commit = false;
+    int status;
 
     LogInfo("\n\nOTA command received\n");
 
@@ -334,7 +335,11 @@ static void on_ota(IotclC2dEventData data) {
     	IOTCL_INFO("wait 5 seconds to commit OTA");
         vTaskDelay( pdMS_TO_TICKS( 5000 ) );
         IOTCL_INFO("committing OTA...");
-        iotc_ota_fw_apply();
+        status = iotc_ota_fw_apply();
+
+        if (status) {
+            IOTCL_ERROR(status, "Failed to apply OTA");
+        }
     }
 }
 
@@ -401,6 +406,10 @@ static int start_ota(char *url)
     }
 
     status = iotc_ota_fw_download(host_name, resource);
+
+    if (status) {
+        IOTCL_ERROR(status, "start_ota: failed ota fw download");
+    }
 
     free(host_name);
     free(resource);
